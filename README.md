@@ -11,7 +11,7 @@ prometheus - grafana.
 ## Подготовка окружения
 Сервер CentOS Linux 7 (Core)
 Docker и docker-compose (через него развернем Prometheus, Grafana, необходимые экспортеры)
-Скачиваем необходимые образы:
+Скачиваем и необходимые образы и запускаем контейнеры:
 
 ### Prometheus
 Находим образ Prometheus, пуллим на сервер:
@@ -99,14 +99,40 @@ Creating node-exporter ... done
 ![image](https://user-images.githubusercontent.com/69105791/174459600-8a91c2e4-9050-470c-81ad-6594fda63c4f.png)
 
 ## Сбор метрик
-Для того чтобы Prometheus начал собирать в себя метрики с node-exporter, необходимо в его конфиг добавить следующее:
+Для того чтобы Prometheus начал собирать в себя метрики с node-exporter, необходимо в конфиг prometheus.yml (он замаплен для удоства в композе) добавить название сборщика метрик и адрес node-exporter. 
+Т.к. работаем через докер то в targets нужно указать частный ip либо адрес сервиса в этой сети (в моем случае так и сделано)
 ```
 scrape_configs:
   - job_name: 'yarkozloff_metrics'
     static_configs:
-      - targets: ['93.185.166.183:9100']
+      - targets: ['node-exporter:9100']
 ```
+Проверим, что prometheus собирает метрики (через вебморду это выглядит нагляднее):
+![image](https://user-images.githubusercontent.com/69105791/174460130-9e639323-ca36-4abb-a45f-fe5efc8ad5ad.png)
 
+## Настройка Grfana
+Для того чтобы приступить к настройке графиков, необходимо подключить Datasource для графаны, выбрав необходимый нам Prometheus (также учитывая что работаем в одной сети достаточно указать название сервиса в адресе):
+![image](https://user-images.githubusercontent.com/69105791/174460222-2035c019-b059-4e6e-bf24-979011d185b1.png)
+Тут есть проблемка, если перезапустить композ то мой datasource слетит и его приходится добавлять заново, нужно как-то его примапить к контейнеру чтобы хранился на хосте.
+Предварительно настроив datasource зайдем в контейнер и видим базу графаны:
+```
+[root@yarkozloff monitoring]# docker exec -it grafana bash
+bash-5.1$ ls /var/lib/grafana
+alerting    csv         grafana.db  plugins     png
+```
+Вынесем этот каталог на хост, замапим в композ и перезапустимся:
+```
+[root@yarkozloff monitoring]# docker cp grafana:/var/lib/grafana grafana_storage
+[root@yarkozloff monitoring]# docker-compose up -d
+Recreating grafana ...
+node-exporter is up-to-date
+Recreating grafana ... done
+```
+Мапинг для grafana выглядит так:
+```
+    volumes:
+      - ./grafana_storage:/var/lib/grafana
+```
+Этим самым в будущем решится проблема с дашбордами и прочими настройками
 
-
-
+## Настройка графиков
