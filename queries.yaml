@@ -1,0 +1,9 @@
+postgres_metrics:
+    query: select "user_name", "order_id" from order_details where "order_name" = 'toy'
+    metrics:
+     - Alias:
+        usage: "LABEL"
+        description: "Покупатель"
+     - Version:
+        usage: "COUNTER"
+        description: "Номер заказа"
